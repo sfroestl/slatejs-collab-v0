@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { createEditor } from 'slate';
 import { Slate, Editable, withReact } from 'slate-react';
 import { v4 } from 'uuid';
@@ -9,13 +9,6 @@ import useInterval from './use-interval';
 const URL = 'http://localhost:3001/collab';
 
 const ID = v4();
-
-const DEFAULT_VALUE = [
-  {
-    type: 'paragraph',
-    children: [{ text: 'A line of text in a paragraph.' }],
-  },
-];
 
 const CollabEditor = ({ readOnly, value, onSave, stopEditing }) => {
   const editor = useMemo(() => withReact(createEditor()), []);
@@ -35,15 +28,21 @@ const CollabEditor = ({ readOnly, value, onSave, stopEditing }) => {
 
 const App = () => {
   const [readOnly, setReadonly] = useState(false);
-  const [value, setValue] = useState(DEFAULT_VALUE);
+  const [value, setValue] = useState();
   const [id, setId] = useState(false);
   // Add the initial value when setting up our state.
+
+  useEffect(() => {
+    axios.get(URL).then((res) => {
+      setValue(res.data.value);
+    });
+  }, []);
 
   useInterval(() => {
     axios.get(URL).then((res) => {
       if (res.data.id && res.data.id !== ID) {
-        setReadonly(true);
         setValue(res.data.value);
+        setReadonly(true);
       } else {
         setReadonly(false);
       }
@@ -52,8 +51,8 @@ const App = () => {
   }, 500);
 
   const onSave = (value) => {
-    axios.post(URL, { id: ID, value: value });
     setValue(value);
+    axios.post(URL, { id: ID, value: value });
   };
 
   const stopEditing = () => {
@@ -66,12 +65,14 @@ const App = () => {
       {readOnly ? 'true' : 'false'}
       <br />
       <br />
-      <CollabEditor
-        readOnly={readOnly}
-        value={value}
-        onSave={onSave}
-        stopEditing={stopEditing}
-      />
+      {value && (
+        <CollabEditor
+          readOnly={readOnly}
+          value={value}
+          onSave={onSave}
+          stopEditing={stopEditing}
+        />
+      )}
     </div>
   );
 };
